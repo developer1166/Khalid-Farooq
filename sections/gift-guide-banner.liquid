@@ -1,0 +1,294 @@
+{{ 'gift-guide.css' | asset_url | stylesheet_tag }}
+
+<section
+  id="GiftGuideBanner-{{ section.id }}"
+  class="gift-guide-banner"
+  data-gift-guide-banner
+>
+  <!-- =====================================================
+       CUSTOM HEADER
+       ===================================================== -->
+  <header class="gift-guide-header">
+    <div class="gift-guide-header__inner">
+
+      <button
+        type="button"
+        class="gift-guide-header__menu-toggle"
+        aria-label="Open menu"
+        aria-expanded="false"
+        data-gift-menu-toggle
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <div class="gift-guide-header__logo">
+        {{ section.settings.logo_text | escape }}
+      </div>
+
+      <p class="gift-guide-header__message">
+        {{ section.settings.header_message | escape }}
+      </p>
+
+      {% if section.settings.choose_gift_label != blank %}
+        <a
+          class="gift-guide-button gift-guide-button--yellow gift-guide-header__button"
+          href="{{ section.settings.choose_gift_link | default: '#' }}"
+        >
+          <span>{{ section.settings.choose_gift_label | escape }}</span>
+          <span class="gift-guide-button__arrow" aria-hidden="true">→</span>
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- Mobile expanded menu -->
+    <div class="gift-guide-mobile-menu" data-gift-mobile-menu>
+      <p class="gift-guide-mobile-menu__message">
+        {{ section.settings.header_message | escape }}
+      </p>
+
+      {% if section.settings.choose_gift_label != blank %}
+        <a
+          class="gift-guide-button gift-guide-button--yellow gift-guide-mobile-menu__button"
+          href="{{ section.settings.choose_gift_link | default: '#' }}"
+        >
+          <span>{{ section.settings.choose_gift_label | escape }}</span>
+          <span class="gift-guide-button__arrow" aria-hidden="true">→</span>
+        </a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- =====================================================
+       HERO
+       Desktop uses top + bottom artwork.
+       Mobile uses dedicated mobile artwork when selected.
+       ===================================================== -->
+  <div class="gift-guide-hero">
+
+    <!-- Top artwork: desktop -->
+    {% if section.settings.top_artwork != blank %}
+      <div class="gift-guide-hero__artwork-top">
+        {{
+          section.settings.top_artwork
+          | image_url: width: 2880
+          | image_tag:
+            class: 'gift-guide-hero__top-image',
+            loading: 'eager',
+            widths: '750, 1000, 1200, 1440, 1920, 2880',
+            sizes: '100vw',
+            alt: ''
+        }}
+      </div>
+    {% endif %}
+
+    <!-- Bottom/right artwork: desktop -->
+    {% if section.settings.bottom_artwork != blank %}
+      <div class="gift-guide-hero__artwork-bottom">
+        {{
+          section.settings.bottom_artwork
+          | image_url: width: 1780
+          | image_tag:
+            class: 'gift-guide-hero__bottom-image',
+            loading: 'eager',
+            widths: '550, 750, 890, 1200, 1780',
+            sizes: '(min-width: 750px) 61.81vw, 100vw',
+            alt: ''
+        }}
+      </div>
+    {% endif %}
+
+    <!-- Dedicated mobile artwork -->
+    {% if section.settings.mobile_artwork != blank %}
+      <div class="gift-guide-hero__artwork-mobile">
+        {{
+          section.settings.mobile_artwork
+          | image_url: width: 750
+          | image_tag:
+            class: 'gift-guide-hero__mobile-image',
+            loading: 'eager',
+            widths: '375, 550, 750',
+            sizes: '(max-width: 749px) 100vw, 1px',
+            alt: ''
+        }}
+      </div>
+    {% endif %}
+
+    <!-- Hero content -->
+    <div class="gift-guide-hero__content">
+
+      {% if section.settings.heading != blank %}
+        <h1 class="gift-guide-hero__heading">
+          {{ section.settings.heading | escape }}
+        </h1>
+      {% endif %}
+
+      <!-- Desktop description -->
+      {% if section.settings.description != blank %}
+        <div class="gift-guide-hero__description gift-guide-hero__description--desktop">
+          {{ section.settings.description }}
+        </div>
+      {% endif %}
+
+      <!-- Mobile description -->
+      {% if section.settings.mobile_description != blank %}
+        <div class="gift-guide-hero__description gift-guide-hero__description--mobile">
+          {{ section.settings.mobile_description }}
+        </div>
+      {% endif %}
+
+      {% if section.settings.shop_button_label != blank %}
+        <a
+          class="gift-guide-button gift-guide-button--black gift-guide-hero__button"
+          href="{{ section.settings.shop_button_link | default: '#' }}"
+        >
+          <span>{{ section.settings.shop_button_label | escape }}</span>
+          <span class="gift-guide-button__arrow" aria-hidden="true">→</span>
+        </a>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- =====================================================
+       BOTTOM STRIP
+       ===================================================== -->
+  {% if section.settings.footer_text != blank %}
+    <div class="gift-guide-banner__footer">
+      {{ section.settings.footer_text | escape }}
+    </div>
+  {% endif %}
+</section>
+
+<script>
+  (() => {
+    const section = document.getElementById('GiftGuideBanner-{{ section.id }}');
+
+    if (!section) return;
+
+    const toggle = section.querySelector('[data-gift-menu-toggle]');
+
+    if (!toggle) return;
+
+    toggle.addEventListener('click', () => {
+      const isOpen = section.classList.toggle(
+        'gift-guide-banner--menu-open'
+      );
+
+      toggle.setAttribute(
+        'aria-expanded',
+        isOpen ? 'true' : 'false'
+      );
+
+      toggle.setAttribute(
+        'aria-label',
+        isOpen ? 'Close menu' : 'Open menu'
+      );
+    });
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Gift Guide Banner",
+  "tag": "section",
+  "class": "gift-guide-banner-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Header"
+    },
+    {
+      "type": "text",
+      "id": "logo_text",
+      "label": "Logo text",
+      "default": "TISSO VISON"
+    },
+    {
+      "type": "text",
+      "id": "header_message",
+      "label": "Header message",
+      "default": "Find the ideal gift for your loved ones."
+    },
+    {
+      "type": "text",
+      "id": "choose_gift_label",
+      "label": "Choose gift button label",
+      "default": "CHOOSE GIFT"
+    },
+    {
+      "type": "url",
+      "id": "choose_gift_link",
+      "label": "Choose gift button link"
+    },
+    {
+      "type": "header",
+      "content": "Hero artwork"
+    },
+    {
+      "type": "image_picker",
+      "id": "top_artwork",
+      "label": "Top artwork (1440 × 390)"
+    },
+    {
+      "type": "image_picker",
+      "id": "bottom_artwork",
+      "label": "Bottom artwork (890 × 402)"
+    },
+    {
+      "type": "image_picker",
+      "id": "mobile_artwork",
+      "label": "Mobile artwork"
+    },
+    {
+      "type": "header",
+      "content": "Hero content"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "The Gift Guide"
+    },
+    {
+      "type": "richtext",
+      "id": "description",
+      "label": "Description",
+      "default": "<p>Discover Joy: Your Ultimate Holiday Gift Destination.Explore our curated selection and find the perfect gifts to delight your loved ones this holiday season.</p>"
+    },
+    {
+      "type": "richtext",
+      "id": "mobile_description",
+      "label": "Mobile description",
+      "default": "<p>Discover Joy: Your Ultimate Holiday Gift Destination.</p>"
+    },
+    {
+      "type": "text",
+      "id": "shop_button_label",
+      "label": "Shop button label",
+      "default": "SHOP NOW"
+    },
+    {
+      "type": "url",
+      "id": "shop_button_link",
+      "label": "Shop button link"
+    },
+    {
+      "type": "header",
+      "content": "Bottom strip"
+    },
+    {
+      "type": "text",
+      "id": "footer_text",
+      "label": "Bottom text",
+      "default": "SUSTAINABLE, ETHICALLY MADE CLOTHES IN SIZES XXS TO 6XL"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Gift Guide Banner"
+    }
+  ]
+}
+{% endschema %}
