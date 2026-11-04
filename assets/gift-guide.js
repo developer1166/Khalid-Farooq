@@ -1,2798 +1,824 @@
-(() => {
 
+(() => {
   'use strict';
 
-
-
   function initGiftGuideGrid(section) {
-
     if (!section) return;
-
-
-
-    if (section.dataset.giftInitialized === 'true') {
-
-      return;
-
-    }
-
-
+    if (section.dataset.giftInitialized === 'true') return;
 
     section.dataset.giftInitialized = 'true';
 
-
-
-
-
     /* =====================================================
-
        ELEMENTS
-
     ===================================================== */
-
-
 
     const modal = section.querySelector('[data-gift-modal]');
-
     const dialog = section.querySelector('.gift-guide-modal__dialog');
 
-
-
     const image = section.querySelector('[data-gift-product-image]');
-
     const title = section.querySelector('[data-gift-product-title]');
-
     const price = section.querySelector('[data-gift-product-price]');
+    const description = section.querySelector('[data-gift-product-description]');
 
-    const description = section.querySelector(
+    const colorGroup = section.querySelector('[data-gift-color-group]');
+    const colorsContainer = section.querySelector('[data-gift-colors]');
 
-      '[data-gift-product-description]'
+    const sizeGroup = section.querySelector('[data-gift-size-group]');
+    const sizeDropdown = section.querySelector('[data-gift-size-dropdown]');
+    const sizeTrigger = section.querySelector('[data-gift-size-trigger]');
+    const sizeText = section.querySelector('[data-gift-size-text]');
+    const sizeMenu = section.querySelector('[data-gift-size-menu]');
 
-    );
-
-
-
-    const colorGroup = section.querySelector(
-
-      '[data-gift-color-group]'
-
-    );
-
-
-
-    const colorsContainer = section.querySelector(
-
-      '[data-gift-colors]'
-
-    );
-
-
-
-    const sizeGroup = section.querySelector(
-
-      '[data-gift-size-group]'
-
-    );
-
-
-
-    const sizeDropdown = section.querySelector(
-
-      '[data-gift-size-dropdown]'
-
-    );
-
-
-
-    const sizeTrigger = section.querySelector(
-
-      '[data-gift-size-trigger]'
-
-    );
-
-
-
-    const sizeText = section.querySelector(
-
-      '[data-gift-size-text]'
-
-    );
-
-
-
-    const sizeMenu = section.querySelector(
-
-      '[data-gift-size-menu]'
-
-    );
-
-
-
-    const addButton = section.querySelector(
-
-      '[data-gift-add]'
-
-    );
-
-
-
-    const addLabel = section.querySelector(
-
-      '[data-gift-add-label]'
-
-    );
-
-
-
-    const message = section.querySelector(
-
-      '[data-gift-message]'
-
-    );
-
-
-
-
-
-    /* =====================================================
-
-       REQUIRED ELEMENT CHECK
-
-    ===================================================== */
-
-
+    const addButton = section.querySelector('[data-gift-add]');
+    const addLabel = section.querySelector('[data-gift-add-label]');
+    const message = section.querySelector('[data-gift-message]');
 
     if (
-
       !modal ||
-
       !dialog ||
-
       !image ||
-
       !title ||
-
       !price ||
-
       !description ||
-
       !colorGroup ||
-
       !colorsContainer ||
-
       !sizeGroup ||
-
       !sizeDropdown ||
-
       !sizeTrigger ||
-
       !sizeText ||
-
       !sizeMenu ||
-
       !addButton ||
-
       !addLabel ||
-
       !message
-
     ) {
-
-      console.warn(
-
-        'Gift Guide: required popup elements were not found.'
-
-      );
-
-
-
+      console.warn('Gift Guide: required popup elements were not found.');
       return;
-
     }
 
-
-
-
-
     /* =====================================================
-
        STATE
-
     ===================================================== */
-
-
 
     let currentProduct = null;
-
     let currentVariant = null;
-
-
-
     let previousFocus = null;
 
-
-
     let selectedColor = '';
-
     let selectedSize = '';
 
-
-
     let colorOptionIndex = -1;
-
     let sizeOptionIndex = -1;
-
-
-
     let otherOptionIndexes = [];
 
-
-
-
+    let isAddingToCart = false;
 
     /* =====================================================
-
        MONEY
-
     ===================================================== */
 
-
-
     const currencyFormat =
-
-      window.Shopify &&
-
-      window.Shopify.money_format
-
+      window.Shopify && window.Shopify.money_format
         ? window.Shopify.money_format
-
         : '${{amount}}';
 
-
-
-
-
     function formatMoney(cents) {
-
-      const amount = (
-
-        Number(cents || 0) / 100
-
-      ).toFixed(2);
-
-
-
+      const amount = (Number(cents || 0) / 100).toFixed(2);
       const parts = amount.split('.');
 
-
-
-      parts[0] = parts[0].replace(
-
-        /\B(?=(\d{3})+(?!\d))/g,
-
-        ','
-
-      );
-
-
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
       const formatted = parts.join('.');
 
-
-
       return currencyFormat
-
+        .replace(/\{\{\s*amount\s*\}\}/g, formatted)
+        .replace(/\{\{\s*amount_no_decimals\s*\}\}/g, parts[0])
         .replace(
-
-          /\{\{\s*amount\s*\}\}/g,
-
-          formatted
-
-        )
-
-        .replace(
-
-          /\{\{\s*amount_no_decimals\s*\}\}/g,
-
-          parts[0]
-
-        )
-
-        .replace(
-
           /\{\{\s*amount_with_comma_separator\s*\}\}/g,
-
           formatted.replace('.', ',')
-
         )
-
         .replace(
-
           /\{\{\s*amount_no_decimals_with_comma_separator\s*\}\}/g,
-
           parts[0]
-
         );
-
     }
 
-
-
-
-
     /* =====================================================
-
        PRODUCT IMAGE
-
     ===================================================== */
-
-
 
     function getImageUrl(product) {
-
-      if (!product) {
-
-        return '';
-
-      }
-
-
+      if (!product) return '';
 
       if (product.featured_image) {
-
-        if (
-
-          typeof product.featured_image === 'string'
-
-        ) {
-
+        if (typeof product.featured_image === 'string') {
           return product.featured_image;
-
         }
-
-
 
         if (product.featured_image.src) {
-
           return product.featured_image.src;
-
         }
-
       }
 
-
-
-      if (
-
-        Array.isArray(product.images) &&
-
-        product.images.length
-
-      ) {
-
+      if (Array.isArray(product.images) && product.images.length) {
         const firstImage = product.images[0];
 
-
-
         if (typeof firstImage === 'string') {
-
           return firstImage;
-
         }
-
-
 
         return firstImage.src || '';
-
       }
-
-
 
       return '';
-
     }
 
-
-
-
-
     /* =====================================================
-
        OPTION HELPERS
-
     ===================================================== */
-
-
 
     function getOptionNames(product) {
-
-      return (product.options || []).map(
-
-        (option, index) => {
-
-          if (typeof option === 'string') {
-
-            return option;
-
-          }
-
-
-
-          return (
-
-            option.name ||
-
-            `Option ${index + 1}`
-
-          );
-
-        }
-
-      );
-
+      return (product.options || []).map((option, index) => {
+        if (typeof option === 'string') return option;
+        return option.name || `Option ${index + 1}`;
+      });
     }
 
-
-
-
-
-    function getOptionIndex(
-
-      names,
-
-      expression
-
-    ) {
-
-      return names.findIndex((name) =>
-
-        expression.test(name)
-
-      );
-
+    function getOptionIndex(names, expression) {
+      return names.findIndex((name) => expression.test(name));
     }
 
-
-
-
-
-    function getVariantOption(
-
-      variant,
-
-      index
-
-    ) {
-
-      if (!variant || index < 0) {
-
-        return '';
-
-      }
-
-
+    function getVariantOption(variant, index) {
+      if (!variant || index < 0) return '';
 
       if (Array.isArray(variant.options)) {
-
         return variant.options[index] || '';
-
       }
 
-
-
-      const key = `option${index + 1}`;
-
-
-
-      return variant[key] || '';
-
+      return variant[`option${index + 1}`] || '';
     }
 
-
-
-
-
     /* =====================================================
-
        AVAILABLE VALUES
-
     ===================================================== */
 
-
-
     function getAvailableValues(optionIndex) {
-
       if (
-
         !currentProduct ||
-
         !Array.isArray(currentProduct.variants)
-
       ) {
-
         return [];
-
       }
-
-
 
       const values = [];
 
+      currentProduct.variants.forEach((variant) => {
+        const value = getVariantOption(variant, optionIndex);
 
-
-      currentProduct.variants.forEach(
-
-        (variant) => {
-
-          const value = getVariantOption(
-
-            variant,
-
-            optionIndex
-
-          );
-
-
-
-          if (
-
-            value &&
-
-            !values.includes(value)
-
-          ) {
-
-            values.push(value);
-
-          }
-
+        if (value && !values.includes(value)) {
+          values.push(value);
         }
-
-      );
-
-
+      });
 
       return values;
-
     }
 
-
-
-
-
     /* =====================================================
-
        COLOR VALUE
-
     ===================================================== */
-
-
 
     function getColorValue(color) {
-
-      const normalized = String(color)
-
-        .trim()
-
-        .toLowerCase();
-
-
+      const normalized = String(color).trim().toLowerCase();
 
       const colorMap = {
-
         white: '#ffffff',
-
         black: '#000000',
-
         blue: '#244e9b',
-
         navy: '#17264a',
-
         red: '#d92727',
-
         green: '#26834a',
-
         yellow: '#fff033',
-
         grey: '#888888',
-
         gray: '#888888',
-
         beige: '#d8c6a5',
-
         brown: '#754c24',
-
         pink: '#f3a6bc',
-
         purple: '#7543a5',
-
         orange: '#ed8a26'
-
       };
 
-
-
-      return (
-
-        colorMap[normalized] ||
-
-        '#f8f8f8'
-
-      );
-
+      return colorMap[normalized] || '#f8f8f8';
     }
 
-
-
-
-
     /* =====================================================
-
        COLOR AVAILABILITY
-
     ===================================================== */
-
-
 
     function isColorAvailable(color) {
-
       if (
-
         !currentProduct ||
-
         !Array.isArray(currentProduct.variants)
-
       ) {
-
         return false;
-
       }
 
+      return currentProduct.variants.some((variant) => {
+        if (!variant.available) return false;
 
-
-      return currentProduct.variants.some(
-
-        (variant) => {
-
-          if (!variant.available) {
-
-            return false;
-
-          }
-
-
-
-          if (
-
-            getVariantOption(
-
-              variant,
-
-              colorOptionIndex
-
-            ) !== color
-
-          ) {
-
-            return false;
-
-          }
-
-
-
-          if (
-
-            selectedSize &&
-
-            sizeOptionIndex >= 0 &&
-
-            getVariantOption(
-
-              variant,
-
-              sizeOptionIndex
-
-            ) !== selectedSize
-
-          ) {
-
-            return false;
-
-          }
-
-
-
-          return true;
-
+        if (
+          getVariantOption(variant, colorOptionIndex) !== color
+        ) {
+          return false;
         }
 
-      );
+        if (
+          selectedSize &&
+          sizeOptionIndex >= 0 &&
+          getVariantOption(variant, sizeOptionIndex) !== selectedSize
+        ) {
+          return false;
+        }
 
+        return true;
+      });
     }
 
-
-
-
-
     /* =====================================================
-
        SIZE AVAILABILITY
-
     ===================================================== */
-
-
 
     function isSizeAvailable(size) {
-
       if (
-
         !currentProduct ||
-
         !Array.isArray(currentProduct.variants)
-
       ) {
-
         return false;
-
       }
 
+      return currentProduct.variants.some((variant) => {
+        if (!variant.available) return false;
 
-
-      return currentProduct.variants.some(
-
-        (variant) => {
-
-          if (!variant.available) {
-
-            return false;
-
-          }
-
-
-
-          if (
-
-            getVariantOption(
-
-              variant,
-
-              sizeOptionIndex
-
-            ) !== size
-
-          ) {
-
-            return false;
-
-          }
-
-
-
-          if (
-
-            selectedColor &&
-
-            colorOptionIndex >= 0 &&
-
-            getVariantOption(
-
-              variant,
-
-              colorOptionIndex
-
-            ) !== selectedColor
-
-          ) {
-
-            return false;
-
-          }
-
-
-
-          return true;
-
+        if (
+          getVariantOption(variant, sizeOptionIndex) !== size
+        ) {
+          return false;
         }
 
-      );
+        if (
+          selectedColor &&
+          colorOptionIndex >= 0 &&
+          getVariantOption(variant, colorOptionIndex) !== selectedColor
+        ) {
+          return false;
+        }
 
+        return true;
+      });
     }
 
-
-
-
-
     /* =====================================================
-
        SELECTED VARIANT
-
     ===================================================== */
-
-
 
     function getSelectedVariant() {
-
       if (
-
         !currentProduct ||
-
         !Array.isArray(currentProduct.variants)
-
       ) {
-
         return null;
-
       }
-
-
 
       return (
+        currentProduct.variants.find((variant) => {
+          if (!variant.available) return false;
 
-        currentProduct.variants.find(
+          if (colorOptionIndex >= 0) {
+            if (!selectedColor) return false;
 
-          (variant) => {
-
-            if (!variant.available) {
-
+            if (
+              getVariantOption(variant, colorOptionIndex) !== selectedColor
+            ) {
               return false;
-
             }
-
-
-
-
-
-            /* COLOR */
-
-
-
-            if (
-
-              colorOptionIndex >= 0
-
-            ) {
-
-              if (!selectedColor) {
-
-                return false;
-
-              }
-
-
-
-              if (
-
-                getVariantOption(
-
-                  variant,
-
-                  colorOptionIndex
-
-                ) !== selectedColor
-
-              ) {
-
-                return false;
-
-              }
-
-            }
-
-
-
-
-
-            /* SIZE */
-
-
-
-            if (
-
-              sizeOptionIndex >= 0
-
-            ) {
-
-              if (!selectedSize) {
-
-                return false;
-
-              }
-
-
-
-              if (
-
-                getVariantOption(
-
-                  variant,
-
-                  sizeOptionIndex
-
-                ) !== selectedSize
-
-              ) {
-
-                return false;
-
-              }
-
-            }
-
-
-
-
-
-            /* OTHER OPTIONS */
-
-
-
-            return otherOptionIndexes.every(
-
-              (index) => {
-
-                const availableDefault =
-
-                  currentProduct.variants.find(
-
-                    (item) =>
-
-                      item.available
-
-                  ) ||
-
-                  currentProduct.variants[0];
-
-
-
-                return (
-
-                  getVariantOption(
-
-                    variant,
-
-                    index
-
-                  ) ===
-
-                  getVariantOption(
-
-                    availableDefault,
-
-                    index
-
-                  )
-
-                );
-
-              }
-
-            );
-
           }
 
-        ) || null
+          if (sizeOptionIndex >= 0) {
+            if (!selectedSize) return false;
 
+            if (
+              getVariantOption(variant, sizeOptionIndex) !== selectedSize
+            ) {
+              return false;
+            }
+          }
+
+          return otherOptionIndexes.every((index) => {
+            const availableDefault =
+              currentProduct.variants.find((item) => item.available) ||
+              currentProduct.variants[0];
+
+            return (
+              getVariantOption(variant, index) ===
+              getVariantOption(availableDefault, index)
+            );
+          });
+        }) || null
       );
-
     }
 
-
-
-
-
     /* =====================================================
-
        MESSAGE
-
     ===================================================== */
 
-
-
-    function updateMessage(
-
-      text,
-
-      isError = false
-
-    ) {
-
+    function updateMessage(text, isError = false) {
       message.textContent = text || '';
-
-
-
-      message.classList.toggle(
-
-        'is-error',
-
-        Boolean(isError)
-
-      );
-
+      message.classList.toggle('is-error', Boolean(isError));
     }
 
-
-
-
-
     /* =====================================================
-
        RENDER COLORS
-
     ===================================================== */
-
-
 
     function renderColorOptions() {
-
       colorsContainer.replaceChildren();
 
-
-
       if (colorOptionIndex < 0) {
-
         colorGroup.hidden = true;
-
         return;
-
       }
-
-
 
       colorGroup.hidden = false;
 
-
-
-      const colors =
-
-        getAvailableValues(
-
-          colorOptionIndex
-
-        );
-
-
-
-
+      const colors = getAvailableValues(colorOptionIndex);
 
       colors.forEach((color) => {
-
-        const button =
-
-          document.createElement('button');
-
-
+        const button = document.createElement('button');
 
         button.type = 'button';
-
-
-
-        button.className =
-
-          'gift-guide-modal__color';
-
-
-
+        button.className = 'gift-guide-modal__color';
         button.dataset.color = color;
 
-
-
-        button.setAttribute(
-
-          'aria-label',
-
-          `Choose ${color}`
-
-        );
-
-
-
-
-
-        /*
-
-         \* IMPORTANT:
-
-         \* no color selected when popup opens.
-
-         */
-
-
+        button.setAttribute('aria-label', `Choose ${color}`);
 
         const isSelected =
+          Boolean(selectedColor) && color === selectedColor;
 
-          Boolean(selectedColor) &&
-
-          color === selectedColor;
-
-
-
-        button.setAttribute(
-
-          'aria-pressed',
-
-          String(isSelected)
-
-        );
-
-
+        button.setAttribute('aria-pressed', String(isSelected));
 
         if (isSelected) {
-
-          button.classList.add(
-
-            'is-selected'
-
-          );
-
+          button.classList.add('is-selected');
         }
 
+        const indicator = document.createElement('span');
+        indicator.className = 'gift-guide-modal__color-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.style.backgroundColor = getColorValue(color);
 
-
-
-
-        const indicator =
-
-          document.createElement('span');
-
-
-
-        indicator.className =
-
-          'gift-guide-modal__color-indicator';
-
-
-
-        indicator.setAttribute(
-
-          'aria-hidden',
-
-          'true'
-
-        );
-
-
-
-        indicator.style.backgroundColor =
-
-          getColorValue(color);
-
-
-
-
-
-        const text =
-
-          document.createElement('span');
-
-
-
-        text.className =
-
-          'gift-guide-modal__color-text';
-
-
-
+        const text = document.createElement('span');
+        text.className = 'gift-guide-modal__color-text';
         text.textContent = color;
 
-
-
-
-
         button.appendChild(indicator);
-
         button.appendChild(text);
 
-
-
-
-
-        const available =
-
-          isColorAvailable(color);
-
-
-
+        const available = isColorAvailable(color);
         button.disabled = !available;
 
+        button.addEventListener('click', () => {
+          if (!available) return;
 
+          selectedColor = color;
 
-
-
-        button.addEventListener(
-
-          'click',
-
-          () => {
-
-            if (!available) {
-
-              return;
-
-            }
-
-
-
-            selectedColor = color;
-
-
-
-
-
-            if (
-
-              selectedSize &&
-
-              !isSizeAvailable(
-
-                selectedSize
-
-              )
-
-            ) {
-
-              selectedSize = '';
-
-            }
-
-
-
-
-
-            refreshOptions();
-
+          if (
+            selectedSize &&
+            !isSizeAvailable(selectedSize)
+          ) {
+            selectedSize = '';
           }
 
-        );
+          refreshOptions();
+        });
 
-
-
-
-
-        colorsContainer.appendChild(
-
-          button
-
-        );
-
+        colorsContainer.appendChild(button);
       });
-
     }
-
-
-
-
 
     /* =====================================================
-
        CUSTOM SIZE DROPDOWN
-
     ===================================================== */
 
-
-
     function closeSizeMenu() {
-
-      sizeDropdown.classList.remove(
-
-        'is-open'
-
-      );
-
-
-
-      sizeTrigger.setAttribute(
-
-        'aria-expanded',
-
-        'false'
-
-      );
-
-
-
+      sizeDropdown.classList.remove('is-open');
+      sizeTrigger.setAttribute('aria-expanded', 'false');
       sizeMenu.hidden = true;
-
     }
-
-
-
-
 
     function openSizeMenu() {
+      if (sizeGroup.hidden) return;
 
-      if (sizeGroup.hidden) {
-
-        return;
-
-      }
-
-
-
-      sizeDropdown.classList.add(
-
-        'is-open'
-
-      );
-
-
-
-      sizeTrigger.setAttribute(
-
-        'aria-expanded',
-
-        'true'
-
-      );
-
-
-
+      sizeDropdown.classList.add('is-open');
+      sizeTrigger.setAttribute('aria-expanded', 'true');
       sizeMenu.hidden = false;
-
     }
-
-
-
-
 
     function toggleSizeMenu() {
-
-      if (
-
-        sizeDropdown.classList.contains(
-
-          'is-open'
-
-        )
-
-      ) {
-
+      if (sizeDropdown.classList.contains('is-open')) {
         closeSizeMenu();
-
       } else {
-
         openSizeMenu();
-
       }
-
     }
-
-
-
-
 
     function updateSizeTrigger() {
-
       if (selectedSize) {
-
-        sizeText.textContent =
-
-          selectedSize;
-
-
-
-        sizeDropdown.classList.add(
-
-          'has-selection'
-
-        );
-
+        sizeText.textContent = selectedSize;
+        sizeDropdown.classList.add('has-selection');
       } else {
-
-        sizeText.textContent =
-
-          'Choose your size';
-
-
-
-        sizeDropdown.classList.remove(
-
-          'has-selection'
-
-        );
-
+        sizeText.textContent = 'Choose your size';
+        sizeDropdown.classList.remove('has-selection');
       }
-
     }
 
-
-
-
-
     function renderSizeOptions() {
-
       sizeMenu.replaceChildren();
 
-
-
       if (sizeOptionIndex < 0) {
-
         sizeGroup.hidden = true;
-
-
-
         selectedSize = '';
-
-
-
         updateSizeTrigger();
-
-
-
         return;
-
       }
-
-
 
       sizeGroup.hidden = false;
 
+      const sizes = getAvailableValues(sizeOptionIndex);
 
-
-      const sizes =
-
-        getAvailableValues(
-
-          sizeOptionIndex
-
-        );
-
-
-
-
-
-      if (
-
-        selectedSize &&
-
-        !sizes.includes(selectedSize)
-
-      ) {
-
+      if (selectedSize && !sizes.includes(selectedSize)) {
         selectedSize = '';
-
       }
-
-
-
-
 
       sizes.forEach((size) => {
-
-        const option =
-
-          document.createElement('button');
-
-
+        const option = document.createElement('button');
 
         option.type = 'button';
-
-
-
-        option.className =
-
-          'gift-guide-modal__size-option';
-
-
-
+        option.className = 'gift-guide-modal__size-option';
         option.dataset.size = size;
-
-
-
         option.textContent = size;
 
-
-
-
-
-        const available =
-
-          isSizeAvailable(size);
-
-
-
+        const available = isSizeAvailable(size);
         option.disabled = !available;
 
-
-
-
-
         const isSelected =
+          Boolean(selectedSize) && size === selectedSize;
 
-          Boolean(selectedSize) &&
-
-          size === selectedSize;
-
-
-
-        option.setAttribute(
-
-          'aria-selected',
-
-          String(isSelected)
-
-        );
-
-
+        option.setAttribute('aria-selected', String(isSelected));
 
         if (isSelected) {
-
-          option.classList.add(
-
-            'is-selected'
-
-          );
-
+          option.classList.add('is-selected');
         }
 
+        option.addEventListener('click', () => {
+          if (!available) return;
 
-
-
-
-        option.addEventListener(
-
-          'click',
-
-          () => {
-
-            if (!available) {
-
-              return;
-
-            }
-
-
-
-            selectedSize = size;
-
-
-
-            closeSizeMenu();
-
-
-
-            refreshOptions();
-
-          }
-
-        );
-
-
-
-
+          selectedSize = size;
+          closeSizeMenu();
+          refreshOptions();
+        });
 
         sizeMenu.appendChild(option);
-
       });
-
-
-
-
 
       updateSizeTrigger();
-
     }
 
+    sizeTrigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleSizeMenu();
+    });
 
-
-
-
-    sizeTrigger.addEventListener(
-
-      'click',
-
-      (event) => {
-
-        event.preventDefault();
-
-        event.stopPropagation();
-
-
-
-        toggleSizeMenu();
-
+    document.addEventListener('click', (event) => {
+      if (!sizeDropdown.contains(event.target)) {
+        closeSizeMenu();
       }
-
-    );
-
-
-
-
-
-    document.addEventListener(
-
-      'click',
-
-      (event) => {
-
-        if (
-
-          !sizeDropdown.contains(
-
-            event.target
-
-          )
-
-        ) {
-
-          closeSizeMenu();
-
-        }
-
-      }
-
-    );
-
-
-
-
+    });
 
     /* =====================================================
-
        UPDATE VARIANT / ADD BUTTON
-
     ===================================================== */
-
-
 
     function updateSelectedVariant() {
-
-      currentVariant =
-
-        getSelectedVariant();
-
-
-
-
+      currentVariant = getSelectedVariant();
 
       if (currentVariant) {
-
-        price.textContent =
-
-          formatMoney(
-
-            currentVariant.price
-
-          );
-
+        price.textContent = formatMoney(currentVariant.price);
       }
 
-
-
-
-
-      const needsColor =
-
-        colorOptionIndex >= 0;
-
-
-
-      const needsSize =
-
-        sizeOptionIndex >= 0;
-
-
-
-
+      const needsColor = colorOptionIndex >= 0;
+      const needsSize = sizeOptionIndex >= 0;
 
       const optionsComplete =
+        (!needsColor || Boolean(selectedColor)) &&
+        (!needsSize || Boolean(selectedSize));
 
-        (!needsColor ||
-
-          Boolean(selectedColor)) &&
-
-        (!needsSize ||
-
-          Boolean(selectedSize));
-
-
-
-
-
-      const available =
-
-        Boolean(
-
-          currentVariant &&
-
-          currentVariant.available
-
-        );
-
-
-
-
+      const available = Boolean(
+        currentVariant && currentVariant.available
+      );
 
       addButton.disabled =
-
-        !optionsComplete ||
-
-        !available;
-
-
-
-
+        isAddingToCart || !optionsComplete || !available;
 
       if (!optionsComplete) {
-
-        addLabel.textContent =
-
-          'ADD TO CART';
-
-
-
+        addLabel.textContent = 'ADD TO CART';
         updateMessage('');
-
-
-
         return;
-
       }
-
-
-
-
 
       if (!available) {
-
-        addLabel.textContent =
-
-          'UNAVAILABLE';
-
-
-
-        updateMessage(
-
-          'This combination is unavailable.',
-
-          true
-
-        );
-
-
-
+        addLabel.textContent = 'UNAVAILABLE';
+        updateMessage('This combination is unavailable.', true);
         return;
-
       }
 
-
-
-
-
-      addLabel.textContent =
-
-        'ADD TO CART';
-
-
-
+      addLabel.textContent = 'ADD TO CART';
       updateMessage('');
-
     }
-
-
-
-
-
-    /* =====================================================
-
-       REFRESH
-
-    ===================================================== */
-
-
 
     function refreshOptions() {
-
       renderColorOptions();
-
-
-
       renderSizeOptions();
-
-
-
       updateSelectedVariant();
-
     }
 
-
-
-
-
     /* =====================================================
-
        STRIP HTML
-
     ===================================================== */
-
-
 
     function stripHtml(value) {
+      const temporary = document.createElement('div');
+      temporary.innerHTML = value || '';
 
-      const temporary =
-
-        document.createElement('div');
-
-
-
-      temporary.innerHTML =
-
-        value || '';
-
-
-
-      return (
-
-        temporary.textContent ||
-
-        temporary.innerText ||
-
-        ''
-
-      );
-
+      return temporary.textContent || temporary.innerText || '';
     }
 
-
-
-
-
     /* =====================================================
-
        POPUP POSITION
-
-       Open beside the exact + hotspot clicked
-
     ===================================================== */
-
-
 
     function positionPopupAtClick(trigger) {
+      if (!trigger || !dialog) return;
 
-      if (!trigger || !dialog) {
+      const rect = trigger.getBoundingClientRect();
 
-        return;
-
-      }
-
-
-
-      const rect =
-
-        trigger.getBoundingClientRect();
-
-
-
-      /*
-
-       \* Read the actual rendered popup dimensions.
-
-       \* Fall back to the Figma 311 x 447 dimensions.
-
-       */
-
-      const popupWidth =
-
-        dialog.offsetWidth || 311;
-
-
-
-      const popupHeight =
-
-        dialog.offsetHeight || 447;
-
-
+      const popupWidth = dialog.offsetWidth || 311;
+      const popupHeight = dialog.offsetHeight || 447;
 
       const gap = 15;
-
       const edge = 15;
 
-
-
-
-
-      /*
-
-       \* Default:
-
-       \* open on RIGHT side of clicked hotspot.
-
-       */
-
-      let left =
-
-        rect.right + gap;
-
-
-
-
-
-      /*
-
-       \* Vertically center popup around hotspot.
-
-       */
+      let left = rect.right + gap;
 
       let top =
-
         rect.top +
-
         rect.height / 2 -
-
         popupHeight / 2;
 
-
-
-
-
-      /*
-
-       \* If popup does not fit on right,
-
-       \* open on LEFT side instead.
-
-       */
-
       if (
-
         left + popupWidth >
-
         window.innerWidth - edge
-
       ) {
-
-        left =
-
-          rect.left -
-
-          popupWidth -
-
-          gap;
-
+        left = rect.left - popupWidth - gap;
       }
-
-
-
-
-
-      /*
-
-       \* If neither side has perfect space,
-
-       \* clamp popup inside viewport.
-
-       */
 
       left = Math.max(
-
         edge,
-
         Math.min(
-
           left,
-
-          window.innerWidth -
-
-            popupWidth -
-
-            edge
-
+          window.innerWidth - popupWidth - edge
         )
-
       );
-
-
-
-
-
-      /*
-
-       \* Keep popup fully visible vertically.
-
-       */
 
       top = Math.max(
-
         edge,
-
         Math.min(
-
           top,
-
-          window.innerHeight -
-
-            popupHeight -
-
-            edge
-
+          window.innerHeight - popupHeight - edge
         )
-
       );
 
+      dialog.style.position = 'fixed';
+      dialog.style.transform = 'none';
+      dialog.style.margin = '0';
 
-
-
-
-      dialog.style.position =
-
-        'fixed';
-
-
-
-      dialog.style.transform =
-
-        'none';
-
-
-
-      dialog.style.margin =
-
-        '0';
-
-
-
-      dialog.style.left =
-
-        `${Math.round(left)}px`;
-
-
-
-      dialog.style.top =
-
-        `${Math.round(top)}px`;
-
-
-
-      dialog.style.right =
-
-        'auto';
-
-
-
-      dialog.style.bottom =
-
-        'auto';
-
+      dialog.style.left = `${Math.round(left)}px`;
+      dialog.style.top = `${Math.round(top)}px`;
+      dialog.style.right = 'auto';
+      dialog.style.bottom = 'auto';
     }
-
-
-
-
-
-    /* =====================================================
-
-       RESET POPUP POSITION
-
-    ===================================================== */
-
-
 
     function resetPopupPosition() {
-
       dialog.style.left = '';
-
       dialog.style.top = '';
-
       dialog.style.right = '';
-
       dialog.style.bottom = '';
-
       dialog.style.margin = '';
-
       dialog.style.transform = '';
-
     }
 
-
-
-
-
     /* =====================================================
-
        OPEN PRODUCT
-
     ===================================================== */
 
-
-
-    function openProduct(
-
-      product,
-
-      trigger
-
-    ) {
-
+    function openProduct(product, trigger) {
       if (
-
         !product ||
-
-        !Array.isArray(
-
-          product.variants
-
-        )
-
+        !Array.isArray(product.variants)
       ) {
-
         return;
-
       }
-
-
-
-
 
       currentProduct = product;
+      previousFocus = trigger || document.activeElement;
 
+      const names = getOptionNames(product);
 
+      colorOptionIndex = getOptionIndex(names, /color|colour/i);
+      sizeOptionIndex = getOptionIndex(names, /size/i);
 
-      previousFocus =
-
-        trigger ||
-
-        document.activeElement;
-
-
-
-
-
-      const names =
-
-        getOptionNames(product);
-
-
-
-
-
-      colorOptionIndex =
-
-        getOptionIndex(
-
-          names,
-
-          /color|colour/i
-
-        );
-
-
-
-
-
-      sizeOptionIndex =
-
-        getOptionIndex(
-
-          names,
-
-          /size/i
-
-        );
-
-
-
-
-
-      /*
-
-       \* Fallback for imported test products.
-
-       */
-
-
-
-      if (
-
-        colorOptionIndex < 0 &&
-
-        names.length >= 2
-
-      ) {
-
+      if (colorOptionIndex < 0 && names.length >= 2) {
         colorOptionIndex = 0;
-
       }
 
-
-
-
-
-      if (
-
-        sizeOptionIndex < 0 &&
-
-        names.length >= 2
-
-      ) {
-
+      if (sizeOptionIndex < 0 && names.length >= 2) {
         sizeOptionIndex = 1;
-
       }
 
-
-
-
-
-      otherOptionIndexes =
-
-        names
-
-          .map((_, index) => index)
-
-          .filter(
-
-            (index) =>
-
-              index !==
-
-                colorOptionIndex &&
-
-              index !==
-
-                sizeOptionIndex
-
-          );
-
-
-
-
+      otherOptionIndexes = names
+        .map((_, index) => index)
+        .filter(
+          (index) =>
+            index !== colorOptionIndex &&
+            index !== sizeOptionIndex
+        );
 
       const defaultVariant =
-
-        product.variants.find(
-
-          (variant) =>
-
-            variant.available
-
-        ) ||
-
+        product.variants.find((variant) => variant.available) ||
         product.variants[0];
 
-
-
-
-
-      /*
-
-       \* NO COLOR PRESELECTED.
-
-       \* NO SIZE PRESELECTED.
-
-       */
-
-
-
+      // No color or size preselected.
       selectedColor = '';
-
       selectedSize = '';
-
-
-
       currentVariant = null;
 
+      const productImage = getImageUrl(product);
 
+      image.src = productImage || '';
+      image.alt = product.title || '';
+      image.hidden = !productImage;
 
+      title.textContent = product.title || '';
 
+      description.textContent = product.description
+        ? stripHtml(product.description)
+        : '';
 
-      /* IMAGE */
-
-
-
-      const productImage =
-
-        getImageUrl(product);
-
-
-
-      image.src =
-
-        productImage || '';
-
-
-
-      image.alt =
-
-        product.title || '';
-
-
-
-      image.hidden =
-
-        !productImage;
-
-
-
-
-
-      /* TITLE */
-
-
-
-      title.textContent =
-
-        product.title || '';
-
-
-
-
-
-      /* DESCRIPTION */
-
-
-
-      description.textContent =
-
-        product.description
-
-          ? stripHtml(
-
-              product.description
-
-            )
-
-          : '';
-
-
-
-
-
-      /* INITIAL PRICE */
-
-
-
-      price.textContent =
-
-        formatMoney(
-
-          defaultVariant
-
-            ? defaultVariant.price
-
-            : 0
-
-        );
-
-
-
-
-
-      /* RESET SIZE */
-
-
+      price.textContent = formatMoney(
+        defaultVariant ? defaultVariant.price : 0
+      );
 
       closeSizeMenu();
 
-
-
-      sizeDropdown.classList.remove(
-
-        'has-selection'
-
-      );
-
-
-
-      sizeText.textContent =
-
-        'Choose your size';
-
-
-
-
-
-      /* RENDER */
-
-
+      sizeDropdown.classList.remove('has-selection');
+      sizeText.textContent = 'Choose your size';
 
       refreshOptions();
-
-
-
-
-
-      /*
-
-       \* Remove positioning left from
-
-       \* previous hotspot before opening.
-
-       */
-
-
-
       resetPopupPosition();
 
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
 
+      document.body.classList.add('gift-guide-modal-open');
 
-
-
-      /* OPEN */
-
-
-
-      modal.classList.add(
-
-        'is-open'
-
-      );
-
-
-
-      modal.setAttribute(
-
-        'aria-hidden',
-
-        'false'
-
-      );
-
-
-
-      document.body.classList.add(
-
-        'gift-guide-modal-open'
-
-      );
-
-
-
-
-
-      /*
-
-       \* Wait until popup is visible so
-
-       \* offsetWidth/offsetHeight are correct,
-
-       \* then place it beside clicked +.
-
-       */
-
-
-
-      window.requestAnimationFrame(
-
-        () => {
-
-          positionPopupAtClick(
-
-            trigger
-
-          );
-
-
-
-          dialog.focus();
-
-        }
-
-      );
-
+      window.requestAnimationFrame(() => {
+        positionPopupAtClick(trigger);
+        dialog.focus();
+      });
     }
 
-
-
-
-
     /* =====================================================
-
        CLOSE MODAL
-
     ===================================================== */
 
-
-
-    function closeModal() {
-
+    function closeModal(restoreFocus = true) {
       closeSizeMenu();
 
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
 
-
-      modal.classList.remove(
-
-        'is-open'
-
-      );
-
-
-
-      modal.setAttribute(
-
-        'aria-hidden',
-
-        'true'
-
-      );
-
-
-
-      document.body.classList.remove(
-
-        'gift-guide-modal-open'
-
-      );
-
-
+      document.body.classList.remove('gift-guide-modal-open');
 
       updateMessage('');
-
-
-
       resetPopupPosition();
 
-
-
-
-
       if (
-
+        restoreFocus &&
         previousFocus &&
-
-        typeof previousFocus.focus ===
-
-          'function'
-
+        typeof previousFocus.focus === 'function'
       ) {
-
         previousFocus.focus();
-
       }
-
     }
 
-
-
-
-
     /* =====================================================
-
        READ PRODUCT JSON
-
     ===================================================== */
 
+    function getProductFromButton(button) {
+      const productId = button.dataset.productId;
 
+      if (!productId) return null;
 
-    function getProductFromButton(
-
-      button
-
-    ) {
-
-      const productId =
-
-        button.dataset.productId;
-
-
-
-      if (!productId) {
-
-        return null;
-
-      }
-
-
-
-
-
-      const productScript =
-
-        document.getElementById(
-
-          productId
-
-        );
-
-
-
-
+      const productScript = document.getElementById(productId);
 
       if (!productScript) {
-
         console.error(
-
           `Gift Guide product JSON not found: ${productId}`
-
         );
-
-
-
         return null;
-
       }
-
-
-
-
 
       try {
-
-        return JSON.parse(
-
-          productScript.textContent
-
-        );
-
+        return JSON.parse(productScript.textContent);
       } catch (error) {
-
-        console.error(
-
-          'Gift Guide product JSON error:',
-
-          error
-
-        );
-
-
-
+        console.error('Gift Guide product JSON error:', error);
         return null;
-
       }
-
     }
 
-
-
-
-
     /* =====================================================
-
        HOTSPOTS
-
     ===================================================== */
 
-
-
     section
-
-      .querySelectorAll(
-
-        '[data-gift-open]'
-
-      )
-
+      .querySelectorAll('[data-gift-open]')
       .forEach((button) => {
+        button.addEventListener('click', () => {
+          const product = getProductFromButton(button);
 
-        button.addEventListener(
+          if (!product) return;
 
-          'click',
-
-          () => {
-
-            const product =
-
-              getProductFromButton(
-
-                button
-
-              );
-
-
-
-            if (!product) {
-
-              return;
-
-            }
-
-
-
-            openProduct(
-
-              product,
-
-              button
-
-            );
-
-          }
-
-        );
-
+          openProduct(product, button);
+        });
       });
 
-
-
-
-
     /* =====================================================
-
        CLOSE BUTTONS
-
     ===================================================== */
-
-
 
     section
-
-      .querySelectorAll(
-
-        '[data-gift-close]'
-
-      )
-
+      .querySelectorAll('[data-gift-close]')
       .forEach((button) => {
-
-        button.addEventListener(
-
-          'click',
-
-          closeModal
-
-        );
-
+        button.addEventListener('click', () => closeModal());
       });
 
-
-
-
-
     /* =====================================================
-
        ESCAPE
-
     ===================================================== */
 
-
-
-    document.addEventListener(
-
-      'keydown',
-
-      (event) => {
-
-        if (
-
-          event.key ===
-
-            'Escape' &&
-
-          modal.classList.contains(
-
-            'is-open'
-
-          )
-
-        ) {
-
-          if (
-
-            sizeDropdown.classList.contains(
-
-              'is-open'
-
-            )
-
-          ) {
-
-            closeSizeMenu();
-
-          } else {
-
-            closeModal();
-
-          }
-
+    document.addEventListener('keydown', (event) => {
+      if (
+        event.key === 'Escape' &&
+        modal.classList.contains('is-open')
+      ) {
+        if (sizeDropdown.classList.contains('is-open')) {
+          closeSizeMenu();
+        } else {
+          closeModal();
         }
-
       }
-
-    );
-
-
-
-
+    });
 
     /* =====================================================
-       CART REQUEST
+       DAWN CART DRAWER INTEGRATION
     ===================================================== */
+
+    function getCartDrawer() {
+      return document.querySelector('cart-drawer');
+    }
 
     async function addItemsToCart(items) {
-      const root =
-        window.Shopify &&
-        window.Shopify.routes &&
-        window.Shopify.routes.root
-          ? window.Shopify.routes.root
-          : '/';
+      const root = window.Shopify?.routes?.root || '/';
+      const cartDrawer = getCartDrawer();
+
+      const payload = { items };
+
+      // Request updated cart sections in the same AJAX call.
+      if (cartDrawer) {
+        payload.sections = [
+          'cart-drawer',
+          'cart-icon-bubble'
+        ];
+        payload.sections_url = window.location.pathname;
+      }
 
       const response = await fetch(`${root}cart/add.js`, {
         method: 'POST',
@@ -2800,7 +826,7 @@
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
-        body: JSON.stringify({ items })
+        body: JSON.stringify(payload)
       });
 
       let result = {};
@@ -2822,6 +848,39 @@
       return result;
     }
 
+    
+function openDawnCartDrawer(result) {
+  const cartDrawer = document.querySelector('cart-drawer');
+
+  if (
+    !cartDrawer ||
+    typeof cartDrawer.renderContents !== 'function'
+  ) {
+    console.warn('Gift Guide: Dawn cart drawer unavailable.');
+    return false;
+  }
+
+  if (
+    !result.sections ||
+    !result.sections['cart-drawer']
+  ) {
+    console.warn('Gift Guide: cart drawer section missing.');
+    return false;
+  }
+
+  // Render the updated cart contents.
+  cartDrawer.renderContents(result);
+
+  // The cart now contains products, so clear Dawn's
+  // incorrect empty-cart state.
+  cartDrawer.classList.remove('is-empty');
+
+  cartDrawer
+    .querySelector('.drawer__inner')
+    ?.classList.remove('is-empty');
+
+  return true;
+}
 
     /* =====================================================
        BONUS PRODUCT
@@ -2845,29 +904,27 @@
       }
     }
 
-
     /* =====================================================
        BLACK + MEDIUM RULE
     ===================================================== */
 
-   function matchesBonusRule(variant) {
-  if (!variant) return false;
+    function matchesBonusRule(variant) {
+      if (!variant) return false;
 
-  const values = Array.isArray(variant.options)
-    ? variant.options.map((value) =>
-        String(value).trim().toLowerCase()
-      )
-    : [];
+      const values = Array.isArray(variant.options)
+        ? variant.options.map((value) =>
+            String(value).trim().toLowerCase()
+          )
+        : [];
 
-  const hasBlack = values.includes('black');
+      const hasBlack = values.includes('black');
 
-  const hasMedium =
-    values.includes('medium') ||
-    values.includes('m');
+      const hasMedium =
+        values.includes('medium') ||
+        values.includes('m');
 
-  return hasBlack && hasMedium;
-}
-
+      return hasBlack && hasMedium;
+    }
 
     /* =====================================================
        ADD TO CART
@@ -2876,6 +933,8 @@
     addButton.addEventListener('click', async (event) => {
       event.preventDefault();
       event.stopPropagation();
+
+      if (isAddingToCart) return;
 
       currentVariant = getSelectedVariant();
 
@@ -2899,8 +958,11 @@
         return;
       }
 
-      const items = [{ id: variantId, quantity: 1 }];
+      const items = [
+        { id: variantId, quantity: 1 }
+      ];
 
+      // Add bonus product for Black + M/Medium.
       if (matchesBonusRule(currentVariant)) {
         const bonusProduct = getBonusProduct();
 
@@ -2929,7 +991,10 @@
 
         const bonusVariantId = Number(bonusVariant.id);
 
-        if (bonusVariantId && bonusVariantId !== variantId) {
+        if (
+          bonusVariantId &&
+          bonusVariantId !== variantId
+        ) {
           items.push({
             id: bonusVariantId,
             quantity: 1
@@ -2937,6 +1002,7 @@
         }
       }
 
+      isAddingToCart = true;
       addButton.disabled = true;
       addLabel.textContent = 'ADDING...';
       updateMessage('');
@@ -2955,228 +1021,104 @@
         document.dispatchEvent(
           new CustomEvent('gift-guide:cart-added', {
             bubbles: true,
-            detail: { items, response: result }
+            detail: {
+              items,
+              response: result
+            }
           })
         );
 
-        document.dispatchEvent(
-          new CustomEvent('cart:refresh', {
-            bubbles: true,
-            detail: { source: 'gift-guide' }
-          })
-        );
+        // Close Gift Guide without restoring focus to hotspot.
+        closeModal(false);
 
-        window.setTimeout(() => {
-          closeModal();
-          addLabel.textContent = 'ADD TO CART';
-          updateSelectedVariant();
-        }, 900);
+        // Open the native Dawn cart drawer.
+        try {
+          const opened = openDawnCartDrawer(result);
+
+          if (!opened) {
+            // Keep cart icon count in sync where possible.
+            console.warn(
+              'Gift Guide: products were added, but the cart drawer did not open.'
+            );
+          }
+        } catch (drawerError) {
+          console.error(
+            'Gift Guide cart drawer error:',
+            drawerError
+          );
+        }
+
       } catch (error) {
         console.error('Gift Guide cart error:', error);
-
-        addLabel.textContent = 'ADD TO CART';
 
         updateMessage(
           error.message ||
           'Could not add to cart. Please try again.',
           true
         );
-
+      } finally {
+        isAddingToCart = false;
+        addLabel.textContent = 'ADD TO CART';
         updateSelectedVariant();
       }
     });
 
-
     /* =====================================================
-
-       KEEP POPUP BESIDE CLICKED HOTSPOT
-
-       IF VIEWPORT SIZE CHANGES
-
+       KEEP POPUP BESIDE HOTSPOT ON RESIZE
     ===================================================== */
-
-
 
     let resizeTimer = null;
 
+    window.addEventListener('resize', () => {
+      if (!modal.classList.contains('is-open')) return;
+      if (!previousFocus) return;
 
+      window.clearTimeout(resizeTimer);
 
-    window.addEventListener(
-
-      'resize',
-
-      () => {
-
-        if (
-
-          !modal.classList.contains(
-
-            'is-open'
-
-          )
-
-        ) {
-
-          return;
-
-        }
-
-
-
-        if (!previousFocus) {
-
-          return;
-
-        }
-
-
-
-        window.clearTimeout(
-
-          resizeTimer
-
-        );
-
-
-
-        resizeTimer =
-
-          window.setTimeout(
-
-            () => {
-
-              positionPopupAtClick(
-
-                previousFocus
-
-              );
-
-            },
-
-            80
-
-          );
-
-      }
-
-    );
-
+      resizeTimer = window.setTimeout(() => {
+        positionPopupAtClick(previousFocus);
+      }, 80);
+    });
   }
 
-
-
-
-
-  /* =======================================================
-
+  /* =====================================================
      INITIALIZE ALL
-
-  ======================================================= */
-
-
+  ===================================================== */
 
   function initAllGiftGuideGrids() {
-
     document
-
-      .querySelectorAll(
-
-        '[data-gift-guide-grid]'
-
-      )
-
-      .forEach(
-
-        initGiftGuideGrid
-
-      );
-
+      .querySelectorAll('[data-gift-guide-grid]')
+      .forEach(initGiftGuideGrid);
   }
 
-
-
-
-
-  if (
-
-    document.readyState ===
-
-    'loading'
-
-  ) {
-
+  if (document.readyState === 'loading') {
     document.addEventListener(
-
       'DOMContentLoaded',
-
       initAllGiftGuideGrids
-
     );
-
   } else {
-
     initAllGiftGuideGrids();
-
   }
 
-
-
-
-
-  /* =======================================================
-
+  /* =====================================================
      SHOPIFY THEME EDITOR
-
-  ======================================================= */
-
-
+  ===================================================== */
 
   document.addEventListener(
-
     'shopify:section:load',
-
     (event) => {
-
       const section =
-
         event.target.matches &&
-
-        event.target.matches(
-
-          '[data-gift-guide-grid]'
-
-        )
-
+        event.target.matches('[data-gift-guide-grid]')
           ? event.target
-
           : event.target.querySelector(
-
               '[data-gift-guide-grid]'
-
             );
 
-
-
-
-
       if (section) {
-
-        delete section.dataset
-
-          .giftInitialized;
-
-
-
-        initGiftGuideGrid(
-
-          section
-
-        );
-
+        delete section.dataset.giftInitialized;
+        initGiftGuideGrid(section);
       }
-
     }
-
   );
-
 })();
